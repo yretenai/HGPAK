@@ -9,7 +9,7 @@ namespace HelloPak;
 
 public sealed class HelloPak : IDisposable {
 	internal const int BlockSize = 0x10000;
-	private static readonly char[] LineSeparators = ['\n', (char) 0];
+	private static readonly char[] LineSeparators = ['\r', '\n', (char) 0];
 
 	public HelloPak(Stream stream) {
 		BaseStream = stream;
