@@ -2,7 +2,7 @@
 using Serilog;
 using Serilog.Events;
 
-namespace LibreFios.Unpack;
+namespace HelloPak.Unpack;
 
 internal enum VerboseLevel {
 	Minimal,
@@ -18,7 +18,7 @@ internal static class Program {
 		var verboseOpt = root.AddOption<bool>("-v", "--verbose", "Verbose output logging (overrides --log-level)");
 		var logLevelOpt = root.AddOption<LogEventLevel>("-l", "--log-level", "Output logging level");
 		logLevelOpt.SetDefaultValue(LogEventLevel.Information);
-		var recursiveOpt = root.AddOption<bool>("-r", "--recursive", "Traverse directories recursively when looking for PSARCs to open");
+		var recursiveOpt = root.AddOption<bool>("-r", "--recursive", "Traverse directories recursively when looking for PAKs to open");
 		var noClobberOpt = root.AddOption<bool>("-n", "--no-clobber", "Silently skip existing files");
 		var dryOpt = root.AddOption<bool>("-d", "--dry", "Do not write anything");
 		var outputPathArg = root.AddArgument<string>("output-path", "Directory to write to");
@@ -66,23 +66,25 @@ internal static class Program {
 			MatchType = MatchType.Simple,
 		};
 
-		foreach (var file in new FileEnumerator(options.Paths, iteratorOptions, "*.psarc")) {
-			Log.Verbose("Opening PSARC {Path}", file);
+		foreach (var file in new FileEnumerator(options.Paths, iteratorOptions, "*.pak")) {
+			Log.Verbose("Opening PAK {Path}", file);
 			using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 			try {
-				using var psarc = new PSARC(stream);
+				using var pak = new HelloPak(stream);
 
-				var reversePaths = psarc.BuildReversePaths();
-				foreach (var (hash, entry) in psarc.FileEntries) {
+				var reversePaths = pak.BuildReversePaths();
+				var first = true;
+				foreach (var (hash, entry) in pak.FileEntries) {
 					string? path;
-					if (hash == default) {
-						path = "_PSARCManifest.txt";
+					if (first) {
+						path = "_FileManifest.txt";
+						first = false;
 					} else if (!reversePaths.TryGetValue(hash, out path)) {
 						path = $"_{hash}.bin";
 					}
 
 					Log.Information("{Path}", path);
-					Log.Debug("Size = {Size}, Hash = {Hash}", (long) entry.DecompressedSize, entry.Hash);
+					Log.Debug("Size = {Size}, Hash = {Hash}", entry.Size, entry.Hash);
 
 					if (options.Dry) {
 						continue;
@@ -97,20 +99,20 @@ internal static class Program {
 					}
 
 					try {
-						using var data = psarc.OpenFile(hash);
+						using var data = pak.OpenFile(hash);
 						Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
 						using var outputStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
 						if (data.Length > 0) {
 							outputStream.Write(data.Data);
 						} else {
-							Log.Warning("PSARC File {Hash} ({Path}) is empty!", hash, path);
+							Log.Warning("PAK File {Hash} ({Path}) is empty!", hash, path);
 						}
 					} catch (Exception e) {
-						Log.Error(e, "Error opening PSARC File {Hash} ({Path})", hash, path);
+						Log.Error(e, "Error opening PAK File {Hash} ({Path})", hash, path);
 					}
 				}
 			} catch (Exception e) {
-				Log.Error(e, "Error opening PSARC {Path}", file);
+				Log.Error(e, "Error opening PAK {Path}", file);
 			}
 		}
 	}

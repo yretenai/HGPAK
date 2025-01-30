@@ -1,7 +1,7 @@
 using System.Collections;
 using System.IO.Enumeration;
 
-namespace LibreFios.Unpack;
+namespace HelloPak.Unpack;
 
 internal class FileEnumerator : IEnumerable<string> {
 	public FileEnumerator(string[] paths, EnumerationOptions options, params string[] patterns) {
