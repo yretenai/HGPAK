@@ -8,8 +8,12 @@ using Waterfall.Compression;
 namespace HelloPak;
 
 public sealed class HelloPakBuilder : IDisposable {
-	public HelloPakBuilder(HelloPak archive) {
+	public HelloPakBuilder(HelloPak? archive) {
 		Archive = archive;
+
+		if (Archive == null) {
+			return;
+		}
 
 		var reverse = Archive.BuildReversePaths();
 		foreach (var (hash, entry) in Archive.FileEntries) {
@@ -22,11 +26,11 @@ public sealed class HelloPakBuilder : IDisposable {
 		}
 	}
 
-	private HelloPak Archive { get; }
+	private HelloPak? Archive { get; }
 	private List<PAKTempFile> Files { get; } = [];
 
 	public void Dispose() {
-		Archive.Dispose();
+		Archive?.Dispose();
 		foreach (var file in Files) {
 			file.Dispose();
 		}
@@ -43,7 +47,7 @@ public sealed class HelloPakBuilder : IDisposable {
 	}
 
 	public void AddFile(string path, HelloPakMemoryBuffer buffer) {
-		if (Archive.Header.ArchiveFlags.HasFlagFast(PAKFlags.CaseInsensitivePaths)) {
+		if (Archive?.Header.ArchiveFlags.HasFlagFast(PAKFlags.CaseInsensitivePaths) == true) {
 			path = path.ToLowerInvariant();
 		}
 
@@ -63,7 +67,7 @@ public sealed class HelloPakBuilder : IDisposable {
 		Files.Add(new PAKTempFile(hash, path, buffer));
 	}
 
-	public void Build(Stream output, PAKCompression compressionType = PAKCompression.Windows, PAKFlags flags = PAKFlags.CaseInsensitivePaths) {
+	public void Build(Stream output, string name, PAKCompression compressionType = PAKCompression.Windows, PAKFlags flags = PAKFlags.CaseInsensitivePaths) {
 		var manifest = new StringBuilder();
 		foreach (var file in Files.Where(x => x.Path != null)) {
 			manifest.Append(file.Path!);
@@ -78,7 +82,7 @@ public sealed class HelloPakBuilder : IDisposable {
 		var blockIndex = 0;
 
 		fileRecords.Add(new PAKFileEntry {
-			Hash = Files[0].Hash, // TODO: figure out what the manifest filename is.
+			Hash = new PAKHash(name), // TODO: figure out what the manifest filename is.
 			Offset = compressedStream.Length,
 			Size = manifestBytes.Length,
 		});

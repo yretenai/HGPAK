@@ -67,12 +67,12 @@ using var anotherKnownFile = pak.OpenFile(someMd5Hash);
 ```csharp
 using var stream = new FileStream(pakPath, FileMode.Open, FileAccess.Read);
 using var existingPak = new HelloPak(stream);
-using var builder = new HelloPakBuilder(existingPak); // it will automatically import all pak files.
+using var builder = new HelloPakBuilder(existingPak); // it will automatically import all pak files if existingPak is not null.
 
 builder.DeleteFile("SOMEFILE.BIN");
 builder.AddFile("EXISTING.BIN", existingData); // if EXISTING.BIN exists, it will overwrite the data.
 builder.AddFile("NEW.BIN", newData);
 
 using var output = new FileStream("new.pak", FileMode.Create, FileAccess.ReadWrite);
-builder.Build(output);
+builder.Build(output, "new.pak");
 ```
