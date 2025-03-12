@@ -1,8 +1,8 @@
 # HelloPak
 
-HelloPak Packer and Unpacker written in c#
+HelloPak Unpacker written in C#
 
-WIP
+Packer is still WIP.
 
 ## Format
 
@@ -40,7 +40,7 @@ Compression Type per Platform:
 - Windows - ZStandard (as of the Worlds 2 Update)
 - macOS - LZ4
 - iPadOS - ??
-- Switch - ??
+- Switch - Oodle
 - PS4 - ??
 - PS5 - ??
 - XONE - ??

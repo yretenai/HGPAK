@@ -8,7 +8,7 @@ using LZMADecoder = SevenZip.Compression.LZMA.Decoder;
 namespace HelloPak;
 
 public sealed class HelloPak : IDisposable {
-	internal const int BlockSize = 0x10000;
+	internal const int BlockSize = 0x100000;
 	private static readonly char[] LineSeparators = ['\r', '\n', (char) 0];
 
 	public HelloPak(Stream stream) {
