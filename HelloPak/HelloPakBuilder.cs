@@ -130,16 +130,22 @@ public sealed class HelloPakBuilder : IDisposable {
 	private static void CompressFile(Memory<byte> data, MemoryStream blockBuffer, MemoryStream compressedStream, PAKCompression compressionType, ref int blockIndex) {
 		Span<long> lengthBuf = stackalloc long[1];
 
-		using var compressedBlock = MemoryPool<byte>.Shared.Rent(HelloPak.BlockSize);
-		var compressedMemory = compressedBlock.Memory[..HelloPak.BlockSize];
+		var blockSize = compressionType switch {
+			                PAKCompression.ZStandard => HelloPak.BlockSizeZSTD,
+			                PAKCompression.Oodle => HelloPak.BlockSizeOodle,
+			                PAKCompression.LZ4 => HelloPak.BlockSizeLZ,
+			                _ => throw new ArgumentOutOfRangeException(nameof(compressionType), compressionType, null)
+		                };
+		using var compressedBlock = MemoryPool<byte>.Shared.Rent(blockSize);
+		var compressedMemory = compressedBlock.Memory[..blockSize];
 		var compressedSpan = compressedMemory.Span;
 
-		for (var i = 0; i < data.Length; i += HelloPak.BlockSize) {
+		for (var i = 0; i < data.Length; i += blockSize) {
 			blockIndex++;
 
 			var slice = data[i..];
-			if (slice.Length > HelloPak.BlockSize) {
-				slice = slice[..HelloPak.BlockSize];
+			if (slice.Length > blockSize) {
+				slice = slice[..blockSize];
 			}
 
 			var start = compressedStream.Length;

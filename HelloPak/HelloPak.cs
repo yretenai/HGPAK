@@ -3,12 +3,13 @@ using System.Runtime.InteropServices;
 using System.Text;
 using HelloPak.Structures;
 using Waterfall.Compression;
-using LZMADecoder = SevenZip.Compression.LZMA.Decoder;
 
 namespace HelloPak;
 
 public sealed class HelloPak : IDisposable {
-	internal const int BlockSize = 0x100000;
+	internal const int BlockSizeLZ = 0x10000;
+	internal const int BlockSizeZSTD = 0x10000;
+	internal const int BlockSizeOodle = 0x20000;
 	private static readonly char[] LineSeparators = ['\r', '\n', (char) 0];
 
 	public HelloPak(Stream stream) {
@@ -67,6 +68,18 @@ public sealed class HelloPak : IDisposable {
 
 		// read manifest (if it exists)
 		// manifest has no hash.
+
+		BaseStream.Position = Header.Base;
+		Span<byte> compressionTypeCheck = stackalloc byte[4];
+		BaseStream.ReadExactly(compressionTypeCheck);
+		if (IsOodle(compressionTypeCheck)) {
+			CompressionType = CompressionType.Oodle;
+		} else if (IsZStandard(compressionTypeCheck)) {
+			CompressionType = CompressionType.Zstd;
+		} else {
+			CompressionType = CompressionType.LZ4;
+		}
+
 		using var manifest = OpenFile(entriesSpan[0].Hash);
 		if (manifest.Length > 0 && manifest.Data[0] != 0) {
 			// todo: check if this always matches the file order, it might be possible to just skip md5-ing the path.
@@ -88,6 +101,20 @@ public sealed class HelloPak : IDisposable {
 	public Dictionary<PAKHash, PAKFileEntry> FileEntries { get; set; }
 	public Dictionary<string, PAKHash> Manifest { get; set; }
 	public IEnumerable<string> Paths => Manifest.Keys;
+	public CompressionType CompressionType {
+		get => field;
+		set {
+			field = value;
+
+			BlockSize = value switch {
+				            CompressionType.Oodle => BlockSizeOodle,
+				            CompressionType.Zstd => BlockSizeZSTD,
+				            _ => BlockSizeLZ,
+			            };
+		}
+	}
+
+	public int BlockSize { get; set; }
 
 	public void Dispose() {
 		ArrayPool<byte>.Shared.Return(ScratchPad);
@@ -123,14 +150,7 @@ public sealed class HelloPak : IDisposable {
 			var blockSlice = blockBuffer[..localBlockSlice];
 			BaseStream.ReadExactly(blockSlice);
 
-			var compressionType = CompressionType.LZ4;
-			if (IsOodle(blockSlice)) {
-				compressionType = CompressionType.Oodle;
-			} else if (IsZStandard(blockSlice)) {
-				compressionType = CompressionType.Zstd;
-			}
-
-			var n = CompressionHelper.Decompress(compressionType, rentedBlockBuffer.Memory[..localBlockSlice], rentedDataBuffer.Memory[..BlockSize]);
+			var n = CompressionHelper.Decompress(CompressionType, rentedBlockBuffer.Memory[..localBlockSlice], rentedDataBuffer.Memory[..BlockSize]);
 
 			if (n <= 0) {
 				throw new InvalidOperationException();
